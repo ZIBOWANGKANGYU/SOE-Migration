@@ -21,15 +21,16 @@ library(gmodels)
 library(dotwhisker)
 library(lmtest)
 library(gridExtra)
-setwd("C:/Users/kangyuwang/OneDrive/ucsd research/modern Chinses religion/data/raw data/cities")
+library(repmis)
+library(digest)
 ## Part 1: data loading and cleaning
 # load in cleaned dataset on SOE reform and migration 
-load("cleaning.RData")
+source_data("https://github.com/ZIBOWANGKANGYU/SOE-Migration/blob/master/cleaning.RData?raw=true")
 # load in base map
-load("prefecture_92_99_map.RData")
+source_data("https://github.com/ZIBOWANGKANGYU/SOE-Migration/blob/master/prefecture_92_99_map.RData?raw=true")
 baseline<-as.data.frame(prefecture_92_99_map%>%select(-geometry))
 # load in dataset of control variables
-load("C:/Users/kangyuwang/OneDrive/ucsd research/modern Chinses religion/data/raw data/year books/prefecture_92_99_long.RData")
+source_data("https://github.com/ZIBOWANGKANGYU/SOE-Migration/blob/master/prefecture_92_99_long.RData?raw=true")
 controls<-prefecture_92_99_long
 # set up pabel structure of cities dataframe
 cities<-pdata.frame(total_cities,index=c("CITYGB","year"))
@@ -60,7 +61,7 @@ cities$total_population_adm_change<-cities$total_population_adm-cities$total_pop
 cities$total_population_adm_change_rate<-cities$total_population_adm_change/cities$total_population_adm_lag
 city_reg<-merge(city_reg, cities%>%group_by(CITYGB)%>%summarise(pop_chg_rate_max=max(total_population_adm_change_rate, na.rm=TRUE)), by.x="city_unique", by.y="CITYGB", all.x = TRUE)
 city_reg<-merge(city_reg, cities%>%group_by(CITYGB)%>%summarise(pop_chg_rate_min=min(total_population_adm_change_rate, na.rm=TRUE)), by.x="city_unique", by.y="CITYGB", all.x = TRUE)
-# Outliers are somehow arbitarily defined as the following: they will be excluded from regression analyses. 
+# Outliers are defined as the following: they will be excluded from regression analyses. 
 city_reg$include_pop_adm<-TRUE
 city_reg$include_pop_adm[(city_reg$R2_pop<=0.5 & (city_reg$pop_chg_rate_max>0.01|city_reg$pop_chg_rate_min<(-0.01)) | (city_reg$R2_pop>=0.8 & (city_reg$pop_chg_rate_max>0.05|city_reg$pop_chg_rate_min<(-0.05))))]<-FALSE
 
@@ -79,14 +80,18 @@ cities<-merge(cities, city_reg%>%select("city_unique", "include_pop_adm", "total
 cities<-pdata.frame(cities,index=c("CITYGB","year"))
 cities$natural_growth_admin_lag<-plm::lag(cities$natural_growth_admin, 1)
 cities$NM_to_1994<-(cities$total_population_adm-cities$total_population_adm_lag*(1+cities$natural_growth_admin_lag/1000))/cities$total_population_adm_94
-# The independent variables is SOE reform in 1998 as a proportion to total population in 1994 
+# The independent variables is SOE reform in 1998 as a proportion to total population in 1994. Also get other variables in 1998
 cities_1998<-cities[cities$year==1998,]
 cities_1998$SOE_dec_98_abs<-(cities_1998$zhigong_number_adm-cities_1998$zhigong_number_adm_lag)
 cities_1998$fdi_real_adm_98<-cities_1998$fdi_real_adm
 cities_1998$gdp_adm_98<-cities_1998$gdp_adm
-cities_1998$SOE_dec_98
 cities<-merge(cities, cities_1998%>%select("CITYGB", "SOE_dec_98_abs", "fdi_real_adm_98", "gdp_adm_98"), by="CITYGB")
-cities$SOE_dec_98<-cities$SOE_dec_98_abs/cities$pop_adm_94
+cities$SOE_dec_98<-cities$SOE_dec_98_abs/cities$total_population_adm_94
+# Similarly, get variables in 1997
+cities_1997<-cities[cities$year==1997,]
+cities_1997$fdi_real_adm_97<-cities_1997$fdi_real_adm
+cities<-merge(cities, cities_1997%>%select("CITYGB", "fdi_real_adm_97"), by="CITYGB")
+
 # add control variables
 cities<-merge(cities, controls%>%select(CITYGB, year, SOE_zhigong, CE_zhigong), by=c("CITYGB", "year"), all.x = TRUE )
 # For data quality issues, emlpoyee (zhigong) number is 1998 of province 13 is omitted
@@ -186,7 +191,7 @@ summary(lm_shanghai)
 plot31112<-ggplot(cities[cities$CITYGB==31,], aes(x=year, y=total_population_adm/100))+geom_point()+geom_smooth(method = "lm", se=TRUE)+
   labs(caption = "R2=0.94", title="Usual Residential Population of Shanghai", subtitle= "1994-2004", y="Usual Residential Population, million")
 grid.arrange(plot31111, plot31112, nrow=1)
-length(unique(cities$CITYGB[cities$include_pop_adm==TRUE]))
+
 
 # timetrend of total residential population: nationwide
 cities_wide<-reshape(cities, direction = "wide", idvar="CITYGB", timevar = "year", sep="_")
@@ -219,6 +224,7 @@ tm_shape(prefecture_92_99_map)+tm_polygons("SOE_dec_98", style="quantile")+tm_bo
 # timetrend of net migration rate by SOE employment change in 1998: by quatile
 ggplot(cities_wide_complete[cities_wide_complete$include_pop_adm_1998==TRUE,], aes(x=SOE_dec_98_1998))+geom_density(size=1)+labs(title = "distribution of change of SOE emlpoyment in 1998", x="change in SOE emlpoyment in 1998", y="density")
 quantile(cities_wide_complete$SOE_dec_98_1998, probs = c(0.25, 0.5, 0.75), na.rm=TRUE)
+cities_1998<-cities[cities$year==1998,]
 cities_1998$SOE_dec_98_qt<-NA
 cities_1998$SOE_dec_98_qt[cities_1998$SOE_dec_98<=quantile(cities_wide_complete$SOE_dec_98_1998, probs = c(0.25, 0.5, 0.75), na.rm=TRUE)[1]]<-1
 cities_1998$SOE_dec_98_qt[cities_1998$SOE_dec_98>quantile(cities_wide_complete$SOE_dec_98_1998, probs = c(0.25, 0.5, 0.75), na.rm=TRUE)[1] & cities_1998$SOE_dec_98<=quantile(cities_wide_complete$SOE_dec_98_1998, probs = c(0.25, 0.5, 0.75), na.rm=TRUE)[2]]<-2
@@ -227,9 +233,9 @@ cities_1998$SOE_dec_98_qt[cities_1998$SOE_dec_98>quantile(cities_wide_complete$S
 cities<-merge(cities, cities_1998[cities_1998$include_pop_adm==TRUE,]%>%select("CITYGB", "SOE_dec_98_qt"), by="CITYGB", all.x = TRUE)
 cities_SOE_dec_98_qt<-cities[cities$include_pop_adm==TRUE,]%>%group_by(SOE_dec_98_qt, year)%>%summarise(NM_to_1994_avr=mean(NM_to_1994, na.rm=TRUE))
 cities_SOE_dec_98_qt$quantile<-factor(cities_SOE_dec_98_qt$SOE_dec_98_qt)
-# timetrend of net migration rate by SOE employment change in 1998: by half
 ggplot(cities_SOE_dec_98_qt[is.na(cities_SOE_dec_98_qt$quantile)==FALSE,], aes(x=year))+geom_line(aes(y=NM_to_1994_avr, col=quantile), size=1)+
   labs(title="Average net migration rate versus SOE downsizing in 1998", subtitle="1995-2004", y="Ratio of net migration to 1994 population")
+# timetrend of net migration rate by SOE employment change in 1998: by half
 cities$SOE_dec_98_hf[cities$SOE_dec_98_qt<=2]<-1
 cities$SOE_dec_98_hf[cities$SOE_dec_98_qt>2]<-0
 cities$SOE_dec_98_hf<-as.factor(cities$SOE_dec_98_hf)
