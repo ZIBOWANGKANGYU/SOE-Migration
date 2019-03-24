@@ -1,5 +1,6 @@
 # This is an R script for the final stage analysis on the relationship between SOE reform in 1998 and migration. It conducts two-way fixed effects analyses and various robust checks. 
-# All source datasets can be found on my github page
+# All source datasets can be found on my github page: https://github.com/ZIBOWANGKANGYU/SOE-Migration
+# This script can be found in https://github.com/ZIBOWANGKANGYU/SOE-Migration/blob/master/R%20script%20Kangyu%20(Mark)%20Wang%20kaw129%40ucsd.edu%20Data%20Analyst.R
 Sys.setenv(LANG = "en")
 library(xlsx)
 library(stringi)
@@ -37,10 +38,10 @@ cities<-pdata.frame(total_cities,index=c("CITYGB","year"))
 # post_t is a dummy variable that takes the value of 1 if year>=1998 and 0 otherwise
 cities$post_t<-as.numeric(as.character(cities$year))>=1998
 # convert numbers into numeric format 
-cities$total_population_adm<-as.numeric(cities$total_population_adm%>%gsub("[[:space:]]", "", .)%>%gsub("¡ª", "-", .)%>%gsub("£®", ".", .))
-cities$natural_growth_admin<-as.numeric(cities$natural_growth_admin%>%gsub("[[:space:]]", "", .)%>%gsub("¡ª", "-", .)%>%gsub("£®", ".", .))
-cities$non_agri_population_admin<-as.numeric(cities$non_agri_population_admin%>%gsub("[[:space:]]", "", .)%>%gsub("¡ª", "-", .)%>%gsub("£®", ".", .))
-cities$average_wage_adm<-as.numeric(cities$average_wage_adm%>%gsub("[[:space:]]", "", .)%>%gsub("¡ª", "-", .)%>%gsub("£®", ".", .))
+cities$total_population_adm<-as.numeric(cities$total_population_adm%>%gsub("[[:space:]]", "", .)%>%gsub("??", "-", .)%>%gsub("??", ".", .))
+cities$natural_growth_admin<-as.numeric(cities$natural_growth_admin%>%gsub("[[:space:]]", "", .)%>%gsub("??", "-", .)%>%gsub("??", ".", .))
+cities$non_agri_population_admin<-as.numeric(cities$non_agri_population_admin%>%gsub("[[:space:]]", "", .)%>%gsub("??", "-", .)%>%gsub("??", ".", .))
+cities$average_wage_adm<-as.numeric(cities$average_wage_adm%>%gsub("[[:space:]]", "", .)%>%gsub("??", "-", .)%>%gsub("??", ".", .))
 cities$year_linear<-as.numeric(cities$year)
 # write cleaned csv
 write.csv(cities, file = "cities.csv")
@@ -148,11 +149,11 @@ stargazer(tw_5, tw_6, tw_7, tw_8, tw_9, tw_10, out = "controls.html", column.lab
  
 ## Part 5: robust checks
 # excluding Jiangsu province, which saw exogenous shock of increading FDI inflow
-tw_0_JS<-plm(NM_to_1994~SOE_dec_98*(year==1998), data = cities[cities$include_pop_adm==TRUE & cities$CPROV!="½­ËÕ",], index=c("CITYGB","year"), model = "within", effect = "twoways" )
+tw_0_JS<-plm(NM_to_1994~SOE_dec_98*(year==1998), data = cities[cities$include_pop_adm==TRUE & cities$CPROV!="????",], index=c("CITYGB","year"), model = "within", effect = "twoways" )
 summary(tw_0_JS)
-tw_1_JS<-plm(NM_to_1994~SOE_dec_98*post_t, data = cities[cities$include_pop_adm==TRUE & cities$CPROV!="½­ËÕ",], index=c("CITYGB","year"), model = "within", effect = "twoways" )
+tw_1_JS<-plm(NM_to_1994~SOE_dec_98*post_t, data = cities[cities$include_pop_adm==TRUE & cities$CPROV!="????",], index=c("CITYGB","year"), model = "within", effect = "twoways" )
 summary(tw_1_JS)
-tw_3_JS<-plm(NM_to_1994~SOE_dec_98*(year==2002)+SOE_dec_98*(year==2001)+SOE_dec_98*(year==2000)+SOE_dec_98*(year==1999)+SOE_dec_98*(year==1998)+SOE_dec_98*(year==1997)+SOE_dec_98*(year==1996)+SOE_dec_98*(year==1995), data = cities[cities$include_pop_adm==TRUE & cities$CPROV!="½­ËÕ",], index=c("CITYGB","year"), model = "within", effect = "twoways" )
+tw_3_JS<-plm(NM_to_1994~SOE_dec_98*(year==2002)+SOE_dec_98*(year==2001)+SOE_dec_98*(year==2000)+SOE_dec_98*(year==1999)+SOE_dec_98*(year==1998)+SOE_dec_98*(year==1997)+SOE_dec_98*(year==1996)+SOE_dec_98*(year==1995), data = cities[cities$include_pop_adm==TRUE & cities$CPROV!="????",], index=c("CITYGB","year"), model = "within", effect = "twoways" )
 summary(tw_3_JS)
 stargazer(tw_0_JS, tw_1_JS, tw_3_JS, out = "baseline_JS.html", column.labels= c("(a)", "(b)", "(c)"),column.separate = c(1, 1), dep.var.labels = "ratio of net migration to 1994 population",
           add.lines = list(c("Year fixed effect", "yes", "yes", "yes"), c("Prefecture fixed effect", "yes", "yes", "yes")), model.numbers = FALSE,
@@ -246,4 +247,4 @@ ggplot(cities_SOE_dec_98_hf[is.na(cities_SOE_dec_98_hf$SOE_dec_98_hf)==FALSE,], 
 
 # summary statistics
 stargazer(cities%>%select(total_population_adm_th, natural_growth_admin, zhigong_number_adm_th, NM_to_1994, SOE_dec_98, nonstate_imp, gdppc_th), out = "summary statistics.html",
-          covariate.labels = c("usual residential population (thousand)", "population natural growth rate (¡ë)", "SOE emlpoyment (thousand)", "net migration as a fraction of 1994 population", "change in 1998 SOE emlpoyment to 1994 total population", "non-sate sector employmemnt share", "GDP per capita (thousand Chinese Yuan)"))
+          covariate.labels = c("usual residential population (thousand)", "population natural growth rate (??)", "SOE emlpoyment (thousand)", "net migration as a fraction of 1994 population", "change in 1998 SOE emlpoyment to 1994 total population", "non-sate sector employmemnt share", "GDP per capita (thousand Chinese Yuan)"))
